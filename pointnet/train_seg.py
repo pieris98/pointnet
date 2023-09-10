@@ -1,4 +1,5 @@
 import torch
+from torch.nn import CrossEntropyLoss
 import torch.nn.functional as F
 import argparse
 from datetime import datetime
@@ -26,9 +27,12 @@ def step(points, pc_labels, class_labels, model):
     
     # TODO : Implement step function for segmentation.
 
-    loss = None
-    logits = None
-    preds = None
+    loss_function = torch.nn.CrossEntropyLoss()
+    logits, feature_transform = model(points.to(device))
+    loss = loss_function(logits,pc_labels.to(device))
+    # regularization loss for t-net feature transform 
+    loss += get_orthogonal_loss(feature_transform)
+    preds = torch.argmax(logits, dim=1)
     return loss, logits, preds
 
 
@@ -39,7 +43,9 @@ def train_step(points, pc_labels, class_labels, model, optimizer, train_acc_metr
     train_batch_acc = train_acc_metric(preds, pc_labels.to(device))
 
     # TODO : Implement backpropagation using optimizer and loss
-
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
     return loss, train_batch_acc
 
 
@@ -167,7 +173,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    args.gpu = 0
+    args.gpu = -1
     args.epochs = 100
     args.batch_size = 128
     args.lr = 1e-3

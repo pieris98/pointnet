@@ -18,20 +18,32 @@ def step(points, labels, model):
         - loss []
         - preds [B]
     """
-    
     # TODO : Implement step function for classification.
-
-    loss = None
-    preds = None
+    logits ,feature_transform  = model(points.to(device))
+    loss_function = torch.nn.CrossEntropyLoss()
+    # pass through cross entropy loss (softmax internally)
+    loss = loss_function(logits, labels.to(device))
+    # regularization loss for t-net feature transform
+    loss += get_orthogonal_loss(feature_transform)
+    # take the max logit probability class per point as the model class prediction 
+    preds = torch.argmax(logits, dim=1)
+    #print('preds shape: ',preds.shape)
     return loss, preds
 
+# points=torch.rand(size=(10,2048,3))
+# labels=torch.rand(size=([10])).long()
+# model = PointNetCls(num_classes=40, input_transform=True, feature_transform=True)
+# loss, preds = step(points, labels, model)
 
 def train_step(points, labels, model, optimizer, train_acc_metric):
     loss, preds = step(points, labels, model)
     train_batch_acc = train_acc_metric(preds, labels.to(device))
+    
 
     # TODO : Implement backpropagation using optimizer and loss
-
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
     return loss, train_batch_acc
 
 
@@ -41,11 +53,10 @@ def validation_step(points, labels, model, val_acc_metric):
 
     return loss, val_batch_acc
 
-
 def main(args):
     global device
     device = "cpu" if args.gpu == -1 else f"cuda:{args.gpu}"
-
+    print('Device is',device)
     model = PointNetCls(num_classes=40, input_transform=True, feature_transform=True)
     model = model.to(device)
 
@@ -151,7 +162,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    args.gpu = 0
+    args.gpu = -1
     args.epochs = 100
     args.batch_size = 128
     args.lr = 1e-3

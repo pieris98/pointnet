@@ -24,9 +24,12 @@ def step(points, model):
     # Hint : Use chamferDist defined in above
     # Hint : You can compute chamfer distance between two point cloud pc1 and pc2 by chamfer_distance(pc1, pc2)
     
-    preds = None
-    loss = None
-
+    preds = model(points.to(device))
+    '''bidirectional chamfer distance calculated (single_bidirectional=False) 
+    and batch_reduction=mean and point_reduction=mean by default according to the docs:
+    https://pytorch3d.readthedocs.io/en/latest/modules/loss.html#pytorch3d.loss.chamfer_distance
+    '''
+    loss, _ = chamfer_distance(points, preds)
     return loss, preds
 
 
@@ -34,7 +37,9 @@ def train_step(points, model, optimizer):
     loss, preds = step(points, model)
 
     # TODO : Implement backpropagation using optimizer and loss
-
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
     return loss, preds
 
 
@@ -129,7 +134,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    args.gpu = 0
+    args.gpu = -1
     args.epochs = 100
     args.batch_size = 128
     args.lr = 1e-3
